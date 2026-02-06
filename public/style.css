@@ -1,0 +1,318 @@
+/* Same CSS as before, just copy */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #f1f5f9;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #334155;
+}
+
+header h1 {
+  font-size: 2.8rem;
+  margin-bottom: 8px;
+  color: #60a5fa;
+}
+
+header h1 i {
+  margin-right: 15px;
+}
+
+.subtitle {
+  color: #94a3b8;
+  font-size: 1.1rem;
+  margin-bottom: 25px;
+}
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 140px;
+  text-align: center;
+  border: 1px solid #475569;
+  transition: transform 0.3s;
+}
+
+.stat:hover {
+  transform: translateY(-5px);
+  border-color: #60a5fa;
+}
+
+.stat-value {
+  display: block;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #60a5fa;
+}
+
+.stat-label {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+section {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 16px;
+  padding: 25px;
+  border: 1px solid #475569;
+}
+
+section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.column {
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 400px;
+}
+
+.column h3 {
+  text-align: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid;
+}
+
+.column[data-status="todo"] h3 {
+  color: #f87171;
+  border-color: #f87171;
+}
+
+.column[data-status="in-progress"] h3 {
+  color: #fbbf24;
+  border-color: #fbbf24;
+}
+
+.column[data-status="done"] h3 {
+  color: #34d399;
+  border-color: #34d399;
+}
+
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.task {
+  background: #1e293b;
+  border-radius: 10px;
+  padding: 15px;
+  border-left: 4px solid;
+  cursor: move;
+  transition: all 0.2s;
+}
+
+.task:hover {
+  background: #334155;
+  transform: translateX(5px);
+}
+
+.task.todo {
+  border-left-color: #f87171;
+}
+
+.task.in-progress {
+  border-left-color: #fbbf24;
+}
+
+.task.done {
+  border-left-color: #34d399;
+}
+
+.task-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #f1f5f9;
+}
+
+.task-desc {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.task-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.task-category {
+  background: #475569;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+}
+
+.add-task {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.add-task input,
+.add-task textarea,
+.add-task select {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #f1f5f9;
+  font-size: 1rem;
+}
+
+.add-task textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+#add-task-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+#add-task-btn:hover {
+  background: #2563eb;
+}
+
+.cron-list,
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.cron-job,
+.activity-item {
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 10px;
+  padding: 15px;
+  border-left: 4px solid #8b5cf6;
+}
+
+.cron-name {
+  font-weight: bold;
+  color: #cbd5e1;
+  margin-bottom: 5px;
+}
+
+.cron-next {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.activity-item {
+  border-left-color: #10b981;
+}
+
+.activity-text {
+  color: #cbd5e1;
+  margin-bottom: 5px;
+}
+
+.activity-time {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+footer {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid #334155;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.hint {
+  font-style: italic;
+  margin-top: 5px;
+}
+
+.netlify-badge {
+  margin-top: 10px;
+}
+
+.netlify-badge a {
+  color: #00c7b7;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.netlify-badge a:hover {
+  text-decoration: underline;
+}
+
+.dragging {
+  opacity: 0.5;
+}
+
+.column.drag-over {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed #3b82f6;
+}

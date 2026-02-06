@@ -1,0 +1,9 @@
+{
+  "name": "clawdbot-dashboard",
+  "version": "1.0.0",
+  "description": "Task tracking dashboard for ClawdBot",
+  "scripts": {
+    "build": "echo 'No build step required'"
+  },
+  "dependencies": {}
+}

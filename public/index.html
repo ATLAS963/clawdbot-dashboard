@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClawdBot Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fas fa-robot"></i> ClawdBot Dashboard</h1>
+      <p class="subtitle">Task tracking & automation overview</p>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-value" id="total-tasks">0</span>
+          <span class="stat-label">Total Tasks</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="done-tasks">0</span>
+          <span class="stat-label">Done</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="inprogress-tasks">0</span>
+          <span class="stat-label">In Progress</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="upcoming-cron">5</span>
+          <span class="stat-label">Upcoming Jobs</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="dashboard-grid">
+        <section class="kanban-section">
+          <h2><i class="fas fa-columns"></i> Task Kanban</h2>
+          <div class="kanban">
+            <div class="column" data-status="todo">
+              <h3>To Do</h3>
+              <div class="tasks" id="todo-tasks"></div>
+            </div>
+            <div class="column" data-status="in-progress">
+              <h3>In Progress</h3>
+              <div class="tasks" id="inprogress-tasks-col"></div>
+            </div>
+            <div class="column" data-status="done">
+              <h3>Done</h3>
+              <div class="tasks" id="done-tasks-col"></div>
+            </div>
+          </div>
+          <div class="add-task">
+            <input type="text" id="new-task-title" placeholder="New task title">
+            <textarea id="new-task-desc" placeholder="Description"></textarea>
+            <select id="new-task-category">
+              <option value="automation">Automation</option>
+              <option value="security">Security</option>
+              <option value="research">Research</option>
+              <option value="development">Development</option>
+              <option value="content">Content</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+            <button id="add-task-btn"><i class="fas fa-plus"></i> Add Task</button>
+          </div>
+        </section>
+
+        <section class="cron-section">
+          <h2><i class="fas fa-clock"></i> Scheduled Jobs</h2>
+          <div class="cron-list" id="cron-list"></div>
+        </section>
+
+        <section class="recent-section">
+          <h2><i class="fas fa-history"></i> Recent Activity</h2>
+          <div class="activity-list" id="activity-list"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <p>Last updated: <span id="last-updated">-</span></p>
+      <p class="hint">Tasks are automatically logged by ClawdBot. Drag & drop to update status.</p>
+      <p class="netlify-badge">Deployed on <a href="https://www.netlify.com" target="_blank">Netlify</a></p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
