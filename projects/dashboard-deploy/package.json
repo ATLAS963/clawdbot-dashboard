@@ -1,0 +1,13 @@
+{
+  "name": "clawdbot-dashboard",
+  "version": "1.0.0",
+  "description": "Modern dashboard for ClawdBot automation system",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'Open index.html in browser'",
+    "build": "echo 'No build step required'"
+  },
+  "keywords": ["dashboard", "clawdbot", "automation", "vercel", "linear"],
+  "author": "Bart",
+  "license": "MIT"
+}

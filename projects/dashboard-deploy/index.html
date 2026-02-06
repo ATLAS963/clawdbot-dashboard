@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClawdBot Dashboard</title>
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --bg: #121217;
+      --bg-alt: #1e1e28;
+      --text-primary: #e0e0ff;
+      --text-secondary: #a0a0c0;
+      --accent: #7c5eff;
+      --accent-light: #a386ff;
+      --border-radius: 8px;
+      --gap: 1.5rem;
+      --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      --transition: 0.3s ease;
+      --header-height: 80px;
+      --shadow: rgba(124, 94, 255, 0.3);
+      --card-padding: 1.25rem 1.5rem;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color var(--transition);
+    }
+    a:hover {
+      color: var(--accent-light);
+    }
+
+    header {
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      background: var(--bg-alt);
+      padding: 0 2rem;
+      border-bottom: 1px solid rgba(124, 94, 255, 0.15);
+      box-shadow: 0 2px 8px var(--shadow);
+      gap: 2rem;
+      overflow-x: auto;
+    }
+
+    header .stat {
+      flex: 1 1 150px;
+      background: #262635;
+      border-radius: var(--border-radius);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 0 8px rgba(124, 94, 255, 0.15);
+      min-width: 150px;
+      transition: background var(--transition);
+    }
+    header .stat:hover {
+      background: var(--bg);
+    }
+
+    header .stat i {
+      font-size: 1.8rem;
+      color: var(--accent);
+      width: 32px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    header .stat .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent-light);
+      line-height: 1.2;
+    }
+
+    header .stat .label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: var(--gap);
+      padding: var(--gap) 2rem 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Left main content: Kanban + Scheduled Jobs */
+    .content-left {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+
+    /* Kanban */
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--gap);
+      background: var(--bg-alt);
+      padding: var(--card-padding);
+      border-radius: var(--border-radius);
+      box-shadow: 0 0 12px var(--shadow);
+    }
+
+    .kanban-column {
+      background: #222230;
+      border-radius: var(--border-radius);
+      display: flex;
+      flex-direction: column;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .kanban-column h3 {
+      font-weight: 700;
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+      color: var(--accent-light);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.5rem;
+      user-select: none;
+    }
+
+    .kanban-card {
+      background: var(--bg);
+      border-radius: var(--border-radius);
+      padding: 1rem 1rem 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 6px rgba(124, 94, 255, 0.15);
+      cursor: grab;
+      transition: background var(--transition), box-shadow var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .kanban-card:last-child {
+      margin-bottom: 0;
+    }
+    .kanban-card:hover {
+      background: #2e2e44;
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .kanban-card .title {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--accent-light);
+    }
+
+    .kanban-card .details {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    /* Scheduled Jobs */
+    .scheduled-jobs {
+      background: var(--bg-alt);
+      border-radius: var(--border-radius);
+      box-shadow: 0 0 12px var(--shadow);
+      padding: var(--card-padding);
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .scheduled-jobs h2 {
+      margin: 0 0 1rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent-light);
+      user-select: none;
+    }
+
+    .job {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(124, 94, 255, 0.15);
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+    .job:last-child {
+      border-bottom: none;
+    }
+    .job .name {
+      flex: 1;
+    }
+    .job .time {
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      text-align: right;
+      min-width: 85px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Right sidebar: Recent Activity */
+    .sidebar {
+      background: var(--bg-alt);
+      border-radius: var(--border-radius);
+      box-shadow: 0 0 12px var(--shadow);
+      padding: var(--card-padding);
+      max-height: 900px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar h2 {
+      margin: 0 0 1rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent-light);
+      user-select: none;
+    }
+
+    .activity-item {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid rgba(124, 94, 255, 0.15);
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      align-items: center;
+    }
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-icon {
+      color: var(--accent);
+      font-size: 1.3rem;
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+    }
+
+    .activity-content {
+      flex: 1;
+    }
+
+    .activity-message {
+      margin: 0;
+      color: var(--text-primary);
+    }
+
+    .activity-time {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+
+    /* Scrollbar - subtle for dark theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-alt);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--accent);
+      border-radius: 4px;
+      opacity: 0.4;
+      transition: opacity 0.3s;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      opacity: 0.7;
+    }
+
+    /* Responsive */
+
+    @media (max-width: 1150px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        max-height: 400px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      header {
+        padding: 0 1rem;
+        gap: 1rem;
+      }
+      header .stat {
+        flex: 1 1 120px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      main {
+        padding: var(--gap) 1rem 1rem;
+      }
+      .kanban {
+        grid-template-columns: 1fr;
+        max-height: none;
+      }
+      .scheduled-jobs {
+        max-height: none;
+      }
+      .sidebar {
+        max-height: none;
+        margin-top: var(--gap);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header aria-label="Statystyki dashboardu ClawdBot">
+    <div class="stat" role="region" aria-labelledby="stat-tasks-label">
+      <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+      <div>
+        <div class="value" id="stat-tasks-value">124</div>
+        <div class="label" id="stat-tasks-label">Zadania</div>
+      </div>
+    </div>
+    <div class="stat" role="region" aria-labelledby="stat-completed-label">
+      <i class="fa-solid fa-check-double" aria-hidden="true"></i>
+      <div>
+        <div class="value" id="stat-completed-value">87</div>
+        <div class="label" id="stat-completed-label">Ukończone</div>
+      </div>
+    </div>
+    <div class="stat" role="region" aria-labelledby="stat-jobs-label">
+      <i class="fa-solid fa-clock" aria-hidden="true"></i>
+      <div>
+        <div class="value" id="stat-jobs-value">5</div>
+        <div class="label" id="stat-jobs-label">Zaplanowane zadania</div>
+      </div>
+    </div>
+    <div class="stat" role="region" aria-labelledby="stat-activity-label">
+      <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+      <div>
+        <div class="value" id="stat-activity-value">342</div>
+        <div class="label" id="stat-activity-label">Aktywności</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="content-left" aria-label="Tablica Kanban i zaplanowane zadania">
+      <section class="kanban" aria-label="Tablica Kanban">
+        <div class="kanban-column" aria-label="Do zrobienia">
+          <h3>Do zrobienia</h3>
+          <article class="kanban-card" tabindex="0" role="article" aria-label="Zadanie: Poprawa UI headera">
+            <div class="title">Poprawa UI headera</div>
+            <div class="details">Poprawić spacing i ikony w headerze</div>
+          </article>
+          <article class="kanban-card" tabindex="0" role="article" aria-label="Zadanie: Dodanie tooltipów">
+            <div class="title">Dodanie tooltipów</div>
+            <div class="details">Tooltipy do przycisków akcji</div>
+          </article>
+        </div>
+        <div class="kanban-column" aria-label="W trakcie">
+          <h3>W trakcie</h3>
+          <article class="kanban-card" tabindex="0" role="article" aria-label="Zadanie: Refaktoryzacja CSS">
+            <div class="title">Refaktoryzacja CSS</div>
+            <div class="details">Użycie custom properties i flexbox</div>
+          </article>
+        </div>
+        <div class="kanban-column" aria-label="Zrobione">
+          <h3>Zrobione</h3>
+          <article class="kanban-card" tabindex="0" role="article" aria-label="Zadanie: Wstępny layout dashboardu">
+            <div class="title">Wstępny layout dashboardu</div>
+            <div class="details">Stworzenie struktury HTML i podstawowego stylu</div>
+          </article>
+          <article class="kanban-card" tabindex="0" role="article" aria-label="Zadanie: Integracja Font Awesome">
+            <div class="title">Integracja Font Awesome</div>
+            <div class="details">Dodanie ikon do dashboardu</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="scheduled-jobs" aria-label="Zaplanowane zadania">
+        <h2>Zaplanowane zadania</h2>
+        <div class="job">
+          <div class="name">Backup bazy danych</div>
+          <time class="time" datetime="2024-06-10T02:00:00">02:00</time>
+        </div>
+        <div class="job">
+          <div class="name">Wysyłka raportów</div>
+          <time class="time" datetime="2024-06-10T09:00:00">09:00</time>
+        </div>
+        <div class="job">
+          <div class="name">Aktualizacja systemu</div>
+          <time class="time" datetime="2024-06-10T23:00:00">23:00</time>
+        </div>
+        <div class="job">
+          <div class="name">Czyszczenie logów</div>
+          <time class="time" datetime="2024-06-11T01:00:00">01:00</time>
+        </div>
+        <div class="job">
+          <div class="name">Synchronizacja danych</div>
+          <time class="time" datetime="2024-06-11T06:00:00">06:00</time>
+        </div>
+      </section>
+    </section>
+
+    <aside class="sidebar" aria-label="Ostatnia aktywność">
+      <h2>Ostatnia aktywność</h2>
+      <div class="activity-item" tabindex="0" role="listitem">
+        <div class="activity-icon" aria-hidden="true">
+          <i class="fa-solid fa-user-check"></i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-message">Jan Kowalski dodał nowe zadanie "Poprawa UI headera"</p>
+          <time class="activity-time" datetime="2024-06-09T15:23:00">2 godziny temu</time>
+        </div>
+      </div>
+      <div class="activity-item" tabindex="0" role="listitem">
+        <div class="activity-icon" aria-hidden="true">
+          <i class="fa-solid fa-pen-to-square"></i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-message">Anna Nowak rozpoczęła pracę nad "Refaktoryzacja CSS"</p>
+          <time class="activity-time" datetime="2024-06-09T14:00:00">3 godziny temu</time>
+        </div>
+      </div>
+      <div class="activity-item" tabindex="0" role="listitem">
+        <div class="activity-icon" aria-hidden="true">
+          <i class="fa-solid fa-check"></i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-message">Michał Wójcik ukończył zadanie "Wstępny layout dashboardu"</p>
+          <time class="activity-time" datetime="2024-06-08T18:45:00">wczoraj</time>
+        </div>
+      </div>
+      <div class="activity-item" tabindex="0" role="listitem">
+        <div class="activity-icon" aria-hidden="true">
+          <i class="fa-solid fa-upload"></i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-message">System wykonał backup bazy danych</p>
+          <time class="activity-time" datetime="2024-06-08T02:00:00">2 dni temu</time>
+        </div>
+      </div>
+      <div class="activity-item" tabindex="0" role="listitem">
+        <div class="activity-icon" aria-hidden="true">
+          <i class="fa-solid fa-gear"></i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-message">Automatyczna aktualizacja systemu zakończona sukcesem</p>
+          <time class="activity-time" datetime="2024-06-07T23:30:00">2 dni temu</time>
+        </div>
+      </div>
+    </aside>
+  </main>
+</body>
+</html>
