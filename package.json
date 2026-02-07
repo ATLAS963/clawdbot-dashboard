@@ -4,6 +4,7 @@
   "description": "Task tracking dashboard for ClawdBot — Vercel + Supabase",
   "private": true,
   "scripts": {
+    "build": "echo 'Static site — no build step'",
     "dev": "vercel dev"
   },
   "dependencies": {
