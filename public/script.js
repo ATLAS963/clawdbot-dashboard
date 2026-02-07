@@ -1,274 +1,508 @@
-// Modified for Netlify Functions
-const API_BASE = '/.netlify/functions';
+// ClawdBot Dashboard — Client
+// API base path (Netlify Functions via redirect)
+const API = '/api/tasks';
 
-document.addEventListener('DOMContentLoaded', () => {
-  const todoCol = document.getElementById('todo-tasks');
-  const inprogressCol = document.getElementById('inprogress-tasks-col');
-  const doneCol = document.getElementById('done-tasks-col');
-  const totalTasksEl = document.getElementById('total-tasks');
-  const doneTasksEl = document.getElementById('done-tasks');
-  const inprogressTasksEl = document.getElementById('inprogress-tasks');
-  const lastUpdatedEl = document.getElementById('last-updated');
-  const cronListEl = document.getElementById('cron-list');
-  const activityListEl = document.getElementById('activity-list');
-  const addTaskBtn = document.getElementById('add-task-btn');
-  const newTaskTitle = document.getElementById('new-task-title');
-  const newTaskDesc = document.getElementById('new-task-desc');
-  const newTaskCategory = document.getElementById('new-task-category');
+// ---- State ----
+let tasks = [];
+let apiKey = localStorage.getItem('clawdbot_key') || '';
+let dragTaskId = null;
 
-  let tasks = [];
-  let dragTask = null;
+// ---- DOM refs ----
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
 
-  // Fetch tasks from Netlify Function
-  async function fetchTasks() {
-    try {
-      const res = await fetch(`${API_BASE}/tasks`);
-      const data = await res.json();
-      tasks = data.tasks || [];
-      lastUpdatedEl.textContent = new Date(data.lastUpdated || Date.now()).toLocaleString();
-      renderTasks();
-      updateStats();
-    } catch (err) {
-      console.error('Failed to fetch tasks:', err);
-      // Fallback to sample data
-      tasks = [
-        {
-          id: "1",
-          title: "Security Audit",
-          description: "Daily security check",
-          category: "security",
-          status: "done",
-          createdAt: "2026-02-06T14:00:00Z",
-          completedAt: "2026-02-06T14:30:00Z",
-          agent: "cron"
-        },
-        {
-          id: "2",
-          title: "Build Dashboard",
-          description: "Create Netlify deployment",
-          category: "development",
-          status: "in-progress",
-          createdAt: "2026-02-06T18:47:00Z",
-          completedAt: null,
-          agent: "manual"
-        }
-      ];
-      renderTasks();
-      updateStats();
+const dom = {
+  authScreen: $('#auth-screen'),
+  dashboard: $('#dashboard'),
+  apiKeyInput: $('#api-key-input'),
+  authBtn: $('#auth-btn'),
+  authError: $('#auth-error'),
+  logoutBtn: $('#logout-btn'),
+  refreshBtn: $('#refresh-btn'),
+  newTaskBtn: $('#new-task-btn'),
+  modal: $('#task-modal'),
+  modalBackdrop: $('#modal-backdrop'),
+  modalClose: $('#modal-close'),
+  modalCancel: $('#modal-cancel'),
+  taskForm: $('#task-form'),
+  taskTitle: $('#task-title'),
+  taskDesc: $('#task-desc'),
+  taskCategory: $('#task-category'),
+  taskStatus: $('#task-status'),
+  statTotal: $('#stat-total'),
+  statTodo: $('#stat-todo'),
+  statProgress: $('#stat-progress'),
+  statDone: $('#stat-done'),
+  countTodo: $('#count-todo'),
+  countProgress: $('#count-progress'),
+  countDone: $('#count-done'),
+  colTodo: $('#col-todo'),
+  colProgress: $('#col-progress'),
+  colDone: $('#col-done'),
+  weeksList: $('#weeks-list'),
+  activityList: $('#activity-list'),
+  toastContainer: $('#toast-container'),
+};
+
+// ---- Utilities ----
+function escapeHtml(text) {
+  const el = document.createElement('span');
+  el.textContent = text || '';
+  return el.innerHTML;
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return {
+    year: d.getFullYear(),
+    week: 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
+  };
+}
+
+function getWeekRange(year, week) {
+  const jan4 = new Date(year, 0, 4);
+  const dayOfWeek = (jan4.getDay() + 6) % 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dayOfWeek + (week - 1) * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt(monday)} — ${fmt(sunday)}`;
+}
+
+function isCurrentWeek(year, week) {
+  const now = getISOWeek(new Date());
+  return now.year === year && now.week === week;
+}
+
+// ---- Auth headers ----
+function authHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (apiKey) h['Authorization'] = `Bearer ${apiKey}`;
+  return h;
+}
+
+// ---- Toast notifications ----
+function toast(message, type = '') {
+  const el = document.createElement('div');
+  el.className = `toast ${type ? 'toast-' + type : ''}`;
+  el.textContent = message;
+  dom.toastContainer.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('toast-out');
+    setTimeout(() => el.remove(), 200);
+  }, 3000);
+}
+
+// ---- API calls ----
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
+  if (res.status === 401) {
+    logout();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+async function loadTasks() {
+  try {
+    const data = await apiFetch(API);
+    tasks = data.tasks || [];
+    render();
+  } catch (err) {
+    console.error('Failed to load tasks:', err);
+    if (err.message !== 'Unauthorized') {
+      toast('Failed to load tasks', 'error');
+      // Use empty array so UI still renders
+      tasks = [];
+      render();
     }
   }
+}
 
-  // Fetch cron jobs (static for now)
-  async function fetchCron() {
-    // In future, fetch from ClawdBot API
-    const cronJobs = [
-      { name: 'Daily Security Audit', nextRun: '2026-02-07T14:00:00Z' },
-      { name: 'System Health Check', nextRun: '2026-02-06T23:00:00Z' },
-      { name: 'ClawdBot Update Check', nextRun: '2026-02-08T15:00:00Z' },
-      { name: 'Backup Verification', nextRun: '2026-02-08T15:00:00Z' },
-      { name: 'API Cost Monitoring', nextRun: '2026-02-13T15:00:00Z' }
-    ];
-    renderCron(cronJobs);
+async function createTask(task) {
+  try {
+    await apiFetch(API, { method: 'POST', body: JSON.stringify(task) });
+    toast('Task created', 'success');
+    await loadTasks();
+  } catch (err) {
+    console.error('Failed to create task:', err);
+    toast('Failed to create task', 'error');
   }
+}
 
-  // Render tasks to columns
-  function renderTasks() {
-    todoCol.innerHTML = '';
-    inprogressCol.innerHTML = '';
-    doneCol.innerHTML = '';
-
-    tasks.forEach(task => {
-      const taskEl = createTaskElement(task);
-      if (task.status === 'todo') todoCol.appendChild(taskEl);
-      else if (task.status === 'in-progress') inprogressCol.appendChild(taskEl);
-      else if (task.status === 'done') doneCol.appendChild(taskEl);
-    });
-
-    // Make tasks draggable
-    document.querySelectorAll('.task').forEach(task => {
-      task.draggable = true;
-      task.addEventListener('dragstart', handleDragStart);
-      task.addEventListener('dragend', handleDragEnd);
-    });
-
-    // Make columns droppable
-    document.querySelectorAll('.column').forEach(col => {
-      col.addEventListener('dragover', handleDragOver);
-      col.addEventListener('dragenter', handleDragEnter);
-      col.addEventListener('dragleave', handleDragLeave);
-      col.addEventListener('drop', handleDrop);
-    });
-
-    // Render recent activity (last 5 done tasks)
-    const recent = tasks
-      .filter(t => t.status === 'done')
-      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-      .slice(0, 5);
-    renderActivity(recent);
+async function updateTask(id, updates) {
+  try {
+    await apiFetch(`${API}/${id}`, { method: 'PATCH', body: JSON.stringify(updates) });
+    await loadTasks();
+  } catch (err) {
+    console.error('Failed to update task:', err);
+    toast('Failed to update task', 'error');
   }
+}
 
-  // Create task DOM element
-  function createTaskElement(task) {
-    const div = document.createElement('div');
-    div.className = `task ${task.status}`;
-    div.dataset.id = task.id;
-    div.innerHTML = `
-      <div class="task-title">${escapeHtml(task.title)}</div>
-      <div class="task-desc">${escapeHtml(task.description)}</div>
-      <div class="task-meta">
-        <span class="task-category">${task.category}</span>
-        <span>${new Date(task.createdAt).toLocaleDateString()}</span>
-      </div>
-    `;
-    return div;
+async function deleteTask(id) {
+  try {
+    await apiFetch(`${API}/${id}`, { method: 'DELETE' });
+    toast('Task deleted', 'success');
+    await loadTasks();
+  } catch (err) {
+    console.error('Failed to delete task:', err);
+    toast('Failed to delete task', 'error');
   }
+}
 
-  // Render cron jobs
-  function renderCron(jobs) {
-    cronListEl.innerHTML = '';
-    jobs.forEach(job => {
-      const div = document.createElement('div');
-      div.className = 'cron-job';
-      div.innerHTML = `
-        <div class="cron-name">${escapeHtml(job.name)}</div>
-        <div class="cron-next">Next: ${new Date(job.nextRun).toLocaleString()}</div>
-      `;
-      cronListEl.appendChild(div);
-    });
+// ---- Auth ----
+async function authenticate(key) {
+  apiKey = key;
+  try {
+    await apiFetch(API);
+    localStorage.setItem('clawdbot_key', key);
+    showDashboard();
+    await loadTasks();
+  } catch {
+    apiKey = '';
+    localStorage.removeItem('clawdbot_key');
+    dom.authError.classList.remove('hidden');
+    throw new Error('Auth failed');
   }
+}
 
-  // Render recent activity
-  function renderActivity(activities) {
-    activityListEl.innerHTML = '';
-    activities.forEach(act => {
-      const div = document.createElement('div');
-      div.className = 'activity-item';
-      div.innerHTML = `
-        <div class="activity-text">${escapeHtml(act.title)}</div>
-        <div class="activity-time">${new Date(act.completedAt).toLocaleString()}</div>
-      `;
-      activityListEl.appendChild(div);
-    });
-  }
+function logout() {
+  apiKey = '';
+  localStorage.removeItem('clawdbot_key');
+  tasks = [];
+  dom.dashboard.classList.add('hidden');
+  dom.authScreen.classList.remove('hidden');
+  dom.apiKeyInput.value = '';
+  dom.authError.classList.add('hidden');
+}
 
-  // Update stats counters
-  function updateStats() {
-    totalTasksEl.textContent = tasks.length;
-    doneTasksEl.textContent = tasks.filter(t => t.status === 'done').length;
-    inprogressTasksEl.textContent = tasks.filter(t => t.status === 'in-progress').length;
-  }
+function showDashboard() {
+  dom.authScreen.classList.add('hidden');
+  dom.dashboard.classList.remove('hidden');
+}
 
-  // Add new task via Netlify Function
-  async function addTask() {
-    const title = newTaskTitle.value.trim();
-    const desc = newTaskDesc.value.trim();
-    const category = newTaskCategory.value;
-    if (!title) return alert('Please enter a task title');
+// ---- Render ----
+function render() {
+  renderStats();
+  renderKanban();
+  renderWeeks();
+  renderActivity();
+}
 
-    const task = {
-      title,
-      description: desc,
-      category,
-      status: 'todo',
-      agent: 'manual'
-    };
+function renderStats() {
+  const todo = tasks.filter(t => t.status === 'todo').length;
+  const progress = tasks.filter(t => t.status === 'in-progress').length;
+  const done = tasks.filter(t => t.status === 'done').length;
+  dom.statTotal.textContent = tasks.length;
+  dom.statTodo.textContent = todo;
+  dom.statProgress.textContent = progress;
+  dom.statDone.textContent = done;
+  dom.countTodo.textContent = todo;
+  dom.countProgress.textContent = progress;
+  dom.countDone.textContent = done;
+}
 
-    try {
-      const res = await fetch(`${API_BASE}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(task)
-      });
-      if (res.ok) {
-        newTaskTitle.value = '';
-        newTaskDesc.value = '';
-        fetchTasks();
-      }
-    } catch (err) {
-      console.error('Failed to add task:', err);
-      // Add locally for demo
-      task.id = Date.now().toString();
-      task.createdAt = new Date().toISOString();
-      tasks.push(task);
-      renderTasks();
-      updateStats();
-    }
-  }
+function renderKanban() {
+  const columns = {
+    'todo': dom.colTodo,
+    'in-progress': dom.colProgress,
+    'done': dom.colDone,
+  };
 
-  // Update task status via Netlify Function
-  async function updateTaskStatus(taskId, newStatus) {
-    try {
-      await fetch(`${API_BASE}/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      fetchTasks();
-    } catch (err) {
-      console.error('Failed to update task:', err);
-      // Update locally for demo
-      const task = tasks.find(t => t.id === taskId);
-      if (task) {
-        task.status = newStatus;
-        if (newStatus === 'done' && !task.completedAt) {
-          task.completedAt = new Date().toISOString();
-        }
-        renderTasks();
-        updateStats();
-      }
-    }
-  }
+  Object.values(columns).forEach(col => col.innerHTML = '');
 
-  // Drag & drop handlers
-  function handleDragStart(e) {
-    dragTask = this;
-    this.classList.add('dragging');
-    e.dataTransfer.setData('text/plain', this.dataset.id);
-  }
+  // Sort: newest first
+  const sorted = [...tasks].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  function handleDragEnd() {
-    this.classList.remove('dragging');
-    dragTask = null;
-    document.querySelectorAll('.column').forEach(col => col.classList.remove('drag-over'));
-  }
-
-  function handleDragOver(e) {
-    e.preventDefault();
-  }
-
-  function handleDragEnter(e) {
-    e.preventDefault();
-    this.classList.add('drag-over');
-  }
-
-  function handleDragLeave() {
-    this.classList.remove('drag-over');
-  }
-
-  function handleDrop(e) {
-    e.preventDefault();
-    this.classList.remove('drag-over');
-    if (!dragTask) return;
-
-    const newStatus = this.dataset.status;
-    const taskId = dragTask.dataset.id;
-    updateTaskStatus(taskId, newStatus);
-  }
-
-  // Utility: escape HTML
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  // Event listeners
-  addTaskBtn.addEventListener('click', addTask);
-  newTaskTitle.addEventListener('keypress', e => {
-    if (e.key === 'Enter') addTask();
+  sorted.forEach(task => {
+    const col = columns[task.status];
+    if (!col) return;
+    col.appendChild(createTaskCard(task));
   });
 
-  // Initial load
-  fetchTasks();
-  fetchCron();
-});
+  // Empty states
+  Object.entries(columns).forEach(([status, col]) => {
+    if (col.children.length === 0) {
+      col.innerHTML = `<div class="empty-state">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+        <span>No tasks</span>
+      </div>`;
+    }
+  });
+
+  setupDragDrop();
+}
+
+function createTaskCard(task) {
+  const div = document.createElement('div');
+  div.className = 'task-card';
+  div.draggable = true;
+  div.dataset.id = task.id;
+
+  const agentLabel = task.agent === 'bot' || task.agent === 'cron' ? 'Bot' : 'Manual';
+  const agentClass = task.agent === 'bot' || task.agent === 'cron' ? 'bot' : '';
+  const agentIcon = task.agent === 'bot' || task.agent === 'cron'
+    ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>'
+    : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+  div.innerHTML = `
+    <div class="task-card-top">
+      <span class="task-category cat-${escapeHtml(task.category)}">${escapeHtml(task.category)}</span>
+      <button class="task-delete" data-id="${escapeHtml(task.id)}" title="Delete task">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="task-title">${escapeHtml(task.title)}</div>
+    ${task.description ? `<div class="task-desc">${escapeHtml(task.description)}</div>` : ''}
+    <div class="task-meta">
+      <span class="task-agent ${agentClass}">${agentIcon} ${agentLabel}</span>
+      <span class="task-date">${formatDate(task.createdAt)}</span>
+    </div>
+  `;
+
+  // Delete button handler
+  div.querySelector('.task-delete').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteTask(task.id);
+  });
+
+  return div;
+}
+
+// ---- Drag & Drop ----
+function setupDragDrop() {
+  $$('.task-card').forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      dragTaskId = card.dataset.id;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      dragTaskId = null;
+      $$('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+    });
+  });
+
+  $$('.kanban-col').forEach(col => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    col.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', (e) => {
+      // Only remove if leaving the column itself
+      if (!col.contains(e.relatedTarget)) {
+        col.classList.remove('drag-over');
+      }
+    });
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      if (!dragTaskId) return;
+      const newStatus = col.dataset.status;
+      const task = tasks.find(t => t.id === dragTaskId);
+      if (task && task.status !== newStatus) {
+        updateTask(dragTaskId, { status: newStatus });
+      }
+    });
+  });
+}
+
+// ---- Weekly Sidebar ----
+function renderWeeks() {
+  const groups = {};
+
+  tasks.forEach(task => {
+    const date = task.completedAt || task.createdAt;
+    if (!date) return;
+    const { year, week } = getISOWeek(new Date(date));
+    const key = `${year}-W${week}`;
+    if (!groups[key]) groups[key] = { year, week, tasks: [] };
+    groups[key].tasks.push(task);
+  });
+
+  // Sort weeks reverse chronologically
+  const sorted = Object.values(groups).sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return b.week - a.week;
+  });
+
+  dom.weeksList.innerHTML = '';
+
+  if (sorted.length === 0) {
+    dom.weeksList.innerHTML = '<div class="empty-state"><span>No history yet</span></div>';
+    return;
+  }
+
+  sorted.forEach((group, idx) => {
+    const isCurrent = isCurrentWeek(group.year, group.week);
+    const range = getWeekRange(group.year, group.week);
+    const doneCount = group.tasks.filter(t => t.status === 'done').length;
+    const totalCount = group.tasks.length;
+
+    const weekEl = document.createElement('div');
+    weekEl.className = `week-group${idx === 0 ? ' expanded' : ''}`;
+
+    weekEl.innerHTML = `
+      <div class="week-header">
+        <svg class="week-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="week-label">${isCurrent ? 'This Week' : `W${group.week}`}</span>
+        <span class="week-badge">${doneCount}/${totalCount}</span>
+      </div>
+      <div class="week-tasks">
+        <div style="font-size:0.72rem;color:var(--text-3);padding:0 8px 4px;font-family:var(--mono)">${range}</div>
+        ${group.tasks.map(t => `
+          <div class="week-task">
+            <span class="week-task-icon ${t.status === 'done' ? 'done' : 'pending'}">
+              ${t.status === 'done'
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
+              }
+            </span>
+            <span class="week-task-name">${escapeHtml(t.title)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    weekEl.querySelector('.week-header').addEventListener('click', () => {
+      weekEl.classList.toggle('expanded');
+    });
+
+    dom.weeksList.appendChild(weekEl);
+  });
+}
+
+// ---- Recent Activity ----
+function renderActivity() {
+  const recent = tasks
+    .filter(t => t.status === 'done' && t.completedAt)
+    .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+    .slice(0, 8);
+
+  dom.activityList.innerHTML = '';
+
+  if (recent.length === 0) {
+    dom.activityList.innerHTML = '<div class="empty-state"><span>No completed tasks</span></div>';
+    return;
+  }
+
+  recent.forEach(task => {
+    const el = document.createElement('div');
+    el.className = 'activity-item';
+    el.innerHTML = `
+      <div class="activity-dot"></div>
+      <div class="activity-info">
+        <div class="activity-title">${escapeHtml(task.title)}</div>
+        <div class="activity-time">${formatTime(task.completedAt)}</div>
+      </div>
+    `;
+    dom.activityList.appendChild(el);
+  });
+}
+
+// ---- Modal ----
+function openModal() {
+  dom.modal.classList.remove('hidden');
+  dom.taskTitle.focus();
+}
+
+function closeModal() {
+  dom.modal.classList.add('hidden');
+  dom.taskForm.reset();
+}
+
+// ---- Event Listeners ----
+function init() {
+  // Auth
+  dom.authBtn.addEventListener('click', () => {
+    const key = dom.apiKeyInput.value.trim();
+    if (!key) return;
+    dom.authBtn.disabled = true;
+    dom.authBtn.textContent = '';
+    dom.authBtn.innerHTML = '<span class="spinner"></span>';
+    authenticate(key).catch(() => {}).finally(() => {
+      dom.authBtn.disabled = false;
+      dom.authBtn.textContent = 'Continue';
+    });
+  });
+
+  dom.apiKeyInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') dom.authBtn.click();
+  });
+
+  dom.apiKeyInput.addEventListener('input', () => {
+    dom.authError.classList.add('hidden');
+  });
+
+  // Logout
+  dom.logoutBtn.addEventListener('click', logout);
+
+  // Refresh
+  dom.refreshBtn.addEventListener('click', () => {
+    dom.refreshBtn.disabled = true;
+    loadTasks().finally(() => {
+      dom.refreshBtn.disabled = false;
+    });
+  });
+
+  // Modal
+  dom.newTaskBtn.addEventListener('click', openModal);
+  dom.modalClose.addEventListener('click', closeModal);
+  dom.modalCancel.addEventListener('click', closeModal);
+  dom.modalBackdrop.addEventListener('click', closeModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !dom.modal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+
+  // Task form
+  dom.taskForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = dom.taskTitle.value.trim();
+    if (!title) return;
+
+    createTask({
+      title,
+      description: dom.taskDesc.value.trim(),
+      category: dom.taskCategory.value,
+      status: dom.taskStatus.value,
+      agent: 'manual',
+    });
+
+    closeModal();
+  });
+
+  // Auto-login if key exists
+  if (apiKey) {
+    showDashboard();
+    loadTasks();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
