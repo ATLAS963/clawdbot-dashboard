@@ -1,9 +1,12 @@
 {
   "name": "clawdbot-dashboard",
-  "version": "1.0.0",
-  "description": "Task tracking dashboard for ClawdBot",
+  "version": "2.0.0",
+  "description": "Task tracking dashboard for ClawdBot — Vercel + Supabase",
+  "private": true,
   "scripts": {
-    "build": "echo 'No build step required'"
+    "dev": "vercel dev"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  }
 }
